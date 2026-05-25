@@ -1,0 +1,93 @@
+version: "3.8"
+
+networks:
+  pipeline-net:
+    driver: bridge
+
+volumes:
+  clickhouse-data:
+  redis-data:
+  grafana-data:
+  redpanda-data:
+
+services:
+
+  redpanda:
+    image: redpandadata/redpanda:latest
+    container_name: redpanda
+    networks:
+      - pipeline-net
+    ports:
+      - "9092:9092"
+      - "9093:9093"
+    volumes:
+      - redpanda-data:/var/lib/redpanda/data
+    command:
+      - redpanda
+      - start
+      - --smp 2
+      - --memory 2G
+      - --reserve-memory 0M
+      - --overprovisioned
+      - --node-id 0
+      - --kafka-addr INTERNAL://0.0.0.0:9093,EXTERNAL://0.0.0.0:9092
+      - --advertise-kafka-addr INTERNAL://redpanda:9093,EXTERNAL://localhost:9092
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    container_name: clickhouse
+    networks:
+      - pipeline-net
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+    environment:
+      CLICKHOUSE_USER: admin
+      CLICKHOUSE_PASSWORD: admin123
+      CLICKHOUSE_DB: news_pipeline
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    networks:
+      - pipeline-net
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    networks:
+      - pipeline-net
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: "Viewer"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: "/var/lib/grafana/dashboards/media_intelligence.json"
+    depends_on:
+      - clickhouse
+
+  nginx:
+    image: nginx:alpine
+    container_name: nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - grafana

@@ -1,0 +1,12 @@
+name: media_intelligence
+version: "1.0.0"
+config-version: 2
+profile: media_intelligence
+model-paths: ["models"]
+
+models:
+  media_intelligence:
+    staging:
+      materialized: view
+    marts:
+      materialized: table

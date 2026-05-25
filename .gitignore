@@ -1,0 +1,9 @@
+venv/
+__pycache__/
+*.pyc
+.env
+*.tsv
+*.csv
+processing/narrative_clusters.json
+*.log
+.dbt/

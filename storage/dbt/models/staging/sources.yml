@@ -1,0 +1,8 @@
+# storage/dbt/models/staging/sources.yml
+version: 2
+sources:
+  - name: news_pipeline
+    database: news_pipeline
+    schema: news_pipeline
+    tables:
+      - name: enriched_articles

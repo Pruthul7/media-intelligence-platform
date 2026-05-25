@@ -1,0 +1,97 @@
+version: "3.8"
+
+networks:
+  pipeline-net:
+    driver: bridge
+
+volumes:
+  redpanda-data:
+  clickhouse-data:
+  redis-data:
+  grafana-data:
+
+services:
+
+  # ── Redpanda (Kafka-compatible, much lighter than real Kafka) ──
+  redpanda:
+    image: redpandadata/redpanda:latest
+    container_name: redpanda
+    networks:
+      - pipeline-net
+    ports:
+      - "9092:9092"     # Kafka API
+      - "9644:9644"     # Admin API
+      - "8081:8081"     # Schema Registry
+    volumes:
+      - redpanda-data:/var/lib/redpanda/data
+    command:
+      - redpanda
+      - start
+      - --smp 1
+      - --memory 512M
+      - --reserve-memory 0M
+      - --overprovisioned
+      - --node-id 0
+      - --kafka-addr INTERNAL://0.0.0.0:9093,EXTERNAL://0.0.0.0:9092
+      - --advertise-kafka-addr INTERNAL://redpanda:9093,EXTERNAL://localhost:9092
+  # ── Redpanda Console (UI to inspect topics/messages) ──
+  redpanda-console:
+    image: redpandadata/console:latest
+    container_name: redpanda-console
+    networks:
+      - pipeline-net
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_BROKERS: redpanda:9093
+    depends_on:
+      - redpanda
+
+  # ── ClickHouse (columnar DB for time-series storage) ──
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    container_name: clickhouse
+    networks:
+      - pipeline-net
+    ports:
+      - "8123:8123"     # HTTP interface
+      - "9000:9000"     # Native TCP interface
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+    environment:
+      CLICKHOUSE_USER: admin
+      CLICKHOUSE_PASSWORD: admin123
+      CLICKHOUSE_DB: news_pipeline
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+
+  # ── Redis (leaderboard cache) ──
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    networks:
+      - pipeline-net
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+
+  # ── Grafana (dashboard) ──
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    networks:
+      - pipeline-net
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin123
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    depends_on:
+      - clickhouse

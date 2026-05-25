@@ -1,0 +1,12 @@
+# storage/dbt/profiles.yml
+media_intelligence:
+  target: dev
+  outputs:
+    dev:
+      type: clickhouse
+      schema: news_pipeline
+      host: localhost
+      port: 8123
+      user: admin
+      password: admin123
+      secure: false
