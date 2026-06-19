@@ -39,6 +39,9 @@ ClickHouse + dbt
 
 Grafana Dashboard
 
+<img width="2720" height="3680" alt="media_intelligence_architecture" src="https://github.com/user-attachments/assets/08e63df2-53e3-407a-adfc-3e75c406e900" />
+
+
 ## Features
 
 **Narrative Detection** — Automatically clusters articles into themes using
